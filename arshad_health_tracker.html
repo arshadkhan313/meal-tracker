@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="theme-color" content="#0f1f0f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="AK Health"/>
+<title>Arshad Health Tracker</title>
+
+<!-- Inline manifest via JS blob — no server required -->
+<script>
+const manifestData = {
+  name: "Arshad Health Tracker",
+  short_name: "AK Health",
+  start_url: ".",
+  display: "standalone",
+  background_color: "#0f1f0f",
+  theme_color: "#0f1f0f",
+  icons: [{
+    src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%230f1f0f'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E🌿%3C/text%3E%3C/svg%3E",
+    sizes: "192x192", type: "image/svg+xml"
+  }]
+};
+const blob = new Blob([JSON.stringify(manifestData)], {type:"application/json"});
+const manifestURL = URL.createObjectURL(blob);
+document.write('<link rel="manifest" href="' + manifestURL + '"/>');
+</script>
+
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#0f1f0f}
+  body{font-family:Georgia,"Times New Roman",serif;color:#e8f0e8;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  button{font-family:inherit;cursor:pointer}
+  input,textarea{font-family:inherit}
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
+
+  #app{min-height:100vh;background:linear-gradient(135deg,#0f1f0f 0%,#0d1a1a 50%,#0f1020 100%)}
+
+  /* Header */
+  .hdr{padding:20px 16px 14px;border-bottom:1px solid rgba(74,222,128,0.15);background:rgba(0,0,0,0.3);position:sticky;top:0;z-index:10}
+  .hdr h1{font-size:20px;font-weight:700;color:#4ade80;display:inline}
+  .hdr .sub{font-size:12px;color:#6b8f6b;font-style:italic;margin-left:8px}
+  .hdr .meta{font-size:11px;color:#4a7a5a;letter-spacing:1px;text-transform:uppercase;margin-top:3px}
+
+  /* Tabs */
+  .tabs{display:flex;border-bottom:1px solid rgba(74,222,128,0.1)}
+  .tab{flex:1;padding:11px 4px;border:none;background:transparent;font-size:12px;letter-spacing:1px;text-transform:uppercase;transition:all 0.2s;border-bottom:2px solid transparent}
+  .tab.active{background:rgba(74,222,128,0.1);color:#4ade80;border-bottom-color:#4ade80}
+  .tab.inactive{color:#4a7a5a}
+
+  /* Day strip */
+  .day-strip{display:flex;padding:12px 8px 0;gap:4px}
+  .day-pill{flex:1;padding:6px 2px;border-radius:10px;border:1px solid rgba(74,222,128,0.15);background:rgba(255,255,255,0.02);text-align:center;transition:all 0.2s}
+  .day-pill.active{border-color:#4ade80;background:rgba(74,222,128,0.12)}
+  .day-pill.today-pill{border-color:rgba(74,222,128,0.4);background:rgba(74,222,128,0.05)}
+  .day-pill.future{opacity:0.45}
+  .dp-dow{font-size:10px;font-family:monospace;margin-bottom:1px}
+  .dp-num{font-size:8px;color:#2a5a3a;margin-bottom:1px}
+  .dp-date{font-size:8px;color:#1e3e2e;margin-bottom:3px}
+  .dp-ring{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto}
+  .dp-inner{width:15px;height:15px;border-radius:50%;background:#0d1a1a;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:bold}
+  .dp-today{font-size:7px;color:#4ade80;margin-top:2px}
+
+  /* Day heading */
+  .day-hdr{padding:10px 14px 4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+  .day-hdr-left{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .day-name{font-size:15px;font-weight:600;color:#c8e6c8}
+  .day-badge{font-size:11px;color:#4ade80;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);border-radius:20px;padding:2px 9px}
+  .day-date-lbl{font-size:11px;color:#4a7a5a}
+  .btn-prev{padding:6px 10px;border-radius:8px;border:1px solid rgba(74,222,128,0.25);background:rgba(74,222,128,0.06);color:#6b9f7a;font-size:11px;white-space:nowrap;transition:all 0.2s}
+  .btn-prev.done{border-color:#4ade80;background:rgba(74,222,128,0.15);color:#4ade80}
+
+  /* Content */
+  .content{padding:0 12px 90px}
+
+  /* Cards */
+  .card{background:rgba(74,222,128,0.05);border-radius:12px;border:1px solid rgba(74,222,128,0.12);padding:14px;margin-bottom:10px}
+  .sec-label{font-size:11px;color:#4ade80;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;font-weight:600}
+
+  /* Toggle items */
+  .toggle-item{display:flex;align-items:center;gap:8px;width:100%;padding:8px 0;border:none;background:transparent;text-align:left;border-bottom:1px solid rgba(74,222,128,0.06);margin-bottom:2px}
+  .toggle-item .lbl{font-size:12px;line-height:1.4}
+  .toggle-item .lbl.on{color:#c8e6c8}
+  .toggle-item .lbl.off{color:#4a7a5a}
+  .toggle-icon{font-size:16px;flex-shrink:0}
+
+  /* Grid chips (fruits / salad) */
+  .chip-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .chip{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.02);text-align:left;transition:all 0.15s}
+  .chip.on{border-color:rgba(74,222,128,0.4);background:rgba(74,222,128,0.1)}
+  .chip-emoji{font-size:14px}
+  .chip-lbl{font-size:11px}
+  .chip-lbl.on{color:#c8e6c8}
+  .chip-lbl.off{color:#4a7a5a}
+
+  /* Salad chips slightly smaller */
+  .chip.sm{padding:5px 7px;border-radius:7px}
+  .chip.sm .chip-emoji{font-size:13px}
+  .chip.sm .chip-lbl{font-size:10px}
+
+  /* Inputs */
+  .inp{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(74,222,128,0.2);background:rgba(0,0,0,0.3);color:#e8f0e8;font-size:13px;outline:none}
+  .inp-sm{width:70px;padding:5px 8px;border-radius:7px;border:1px solid rgba(74,222,128,0.2);background:rgba(0,0,0,0.3);color:#e8f0e8;font-size:13px;outline:none}
+  .inp::placeholder,.inp-sm::placeholder{color:#2a4a3a}
+  textarea.inp{resize:vertical;line-height:1.5}
+  .row{display:flex;align-items:center;gap:8px}
+  .lbl-sm{font-size:12px;color:#6b8f6b}
+  .note-sm{font-size:11px;color:#4a7a5a;margin:4px 0 8px;font-style:italic}
+
+  /* Copy button */
+  .btn-copy{width:100%;padding:15px;border-radius:12px;border:1px solid rgba(74,222,128,0.3);background:rgba(74,222,128,0.07);color:#a0c8a0;font-size:14px;letter-spacing:0.5px;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px}
+  .btn-copy.done{border-color:#4ade80;background:rgba(74,222,128,0.15);color:#4ade80}
+  .copy-icon{font-size:18px}
+
+  /* Summary bars */
+  .score-chart{display:flex;gap:5px;align-items:flex-end;height:70px}
+  .score-col{flex:1;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+  .score-val{font-size:9px;margin-bottom:2px;font-weight:bold}
+  .score-bar{width:100%;border-radius:3px 3px 0 0;transition:height 0.4s}
+  .score-dow{font-size:10px;color:#4a7a5a;margin-top:4px}
+  .score-dn{font-size:8px;color:#2a5a3a}
+
+  /* Habit bars */
+  .habit-row{margin-bottom:9px}
+  .habit-top{display:flex;justify-content:space-between;margin-bottom:3px}
+  .habit-name{font-size:12px;color:#c8e6c8;flex:1;padding-right:8px}
+  .habit-count{font-size:12px;font-family:monospace}
+  .habit-track{height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden}
+  .habit-fill{height:100%;border-radius:3px;transition:width 0.4s}
+
+  /* Meals */
+  .meal-row{margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(74,222,128,0.08)}
+  .meal-day{font-size:11px;color:#4ade80;margin-bottom:4px;font-weight:600}
+  .meal-line{font-size:12px;color:#a0c8a0;margin-bottom:2px}
+
+  /* Footer */
+  .footer{padding:10px 20px 24px;text-align:center;font-size:11px;color:#2a4a3a}
+
+  /* Divider */
+  .divider{border-top:1px solid rgba(74,222,128,0.1);padding-top:10px;margin-top:2px}
+
+  /* Weight row */
+  .wt-row{display:flex;align-items:center;gap:8px;margin-top:8px}
+
+  /* Fruit row header */
+  .fruit-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// DATA & HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+const PLAN_START = new Date(2026, 3, 1);
+
+function midnight(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function dateKey(d){ const x=midnight(d); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+function getDayNum(d){ return Math.floor((midnight(d)-midnight(PLAN_START))/86400000)+1; }
+function fmtDate(d){ const x=midnight(d); return x.getDate()+"-"+x.toLocaleString("en-GB",{month:"short"})+"-"+String(x.getFullYear()).slice(2); }
+function scoreColor(s){ return s>=80?"#4ade80":s>=55?"#facc15":"#f87171"; }
+
+const DAY_SHORT=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const DAY_FULL=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+function buildWindow(today){ return Array.from({length:7},(_,i)=>midnight(addDays(today,i-3))); }
+
+const FRUITS=[
+  {id:"apple",label:"Apple",e:"🍎"},{id:"banana",label:"Banana",e:"🍌"},
+  {id:"pineapple",label:"Pineapple",e:"🍍"},{id:"blueberries",label:"Blueberries",e:"🫐"},
+  {id:"strawberries",label:"Strawberries",e:"🍓"},{id:"cantaloupe",label:"Cantaloupe",e:"🍈"},
+  {id:"papaya",label:"Papaya",e:"🧡"},{id:"watermelon",label:"Watermelon",e:"🍉"},
+  {id:"orange",label:"Orange",e:"🍊"},{id:"pear",label:"Pear",e:"🍐"}
+];
+
+const SALAD=[
+  {id:"lettuce",label:"Lettuce",e:"🥬"},{id:"carrot",label:"Carrot",e:"🥕"},
+  {id:"cucumber",label:"Cucumber",e:"🥒"},{id:"redCabbage",label:"Red Cabbage",e:"🫛"},
+  {id:"beetroot",label:"Boiled Beetroot",e:"🟣"},{id:"onion",label:"Onion",e:"🧅"},
+  {id:"brusselSprouts",label:"Brussel Sprouts",e:"🥦"},{id:"peanuts",label:"Roasted Peanuts",e:"🥜"},
+  {id:"sesame",label:"Sesame Seeds",e:"⚪"},{id:"blackSesame",label:"Black Sesame Seeds",e:"⚫"},
+  {id:"kalonji",label:"Kalonji",e:"🌿"}
+];
+
+const STD_SALAD={lettuce:1,carrot:1,cucumber:1,redCabbage:1,beetroot:1,peanuts:1,sesame:1,blackSesame:1,kalonji:1};
+
+const HABITS=["methi","fruitBowl","smoothie","preLunchSalad","abcJuice","preDinnerSalad",
+  "stretching","exercise","sunlight","wetPack","grounding","meditation","ashwagandha","affirmations","breathing"];
+
+const HABIT_LABELS={
+  methi:"Methi Water + Garlic",fruitBowl:"Fruit Bowl",smoothie:"Smoothie",
+  preLunchSalad:"Pre-Lunch Salad",abcJuice:"ABC Juice",preDinnerSalad:"Pre-Dinner Salad",
+  stretching:"Stretching",exercise:"Exercise",sunlight:"Sunlight",wetPack:"Wet Pack Therapy",
+  grounding:"Grounding",meditation:"Meditation Audio",ashwagandha:"Ashwagandha",
+  affirmations:"Affirmations",breathing:"Breathing Techniques"
+};
+
+function emptyDay(){
+  return {
+    lunch:"",dinner:"",fruits:{},
+    fruitBowlWeight:"500",smoothieIngredients:"",
+    preLunchSaladIng:{...STD_SALAD},preLunchSaladWt:"250",
+    preDinnerSaladIng:{...STD_SALAD},preDinnerSaladWt:"230",
+    extraHerbs:"",
+    habits:Object.fromEntries(HABITS.map(h=>[h,false])),
+    notes:""
+  };
+}
+
+const PFX="arshad_v7_day_";
+function loadDay(dk){ try{ const s=localStorage.getItem(PFX+dk); return s?JSON.parse(s):null; }catch{return null;} }
+function saveDay(dk,d){ try{ localStorage.setItem(PFX+dk,JSON.stringify(d)); }catch{} }
+function pruneOld(today){
+  try{
+    const cutoff=dateKey(addDays(today,-7));
+    Object.keys(localStorage).forEach(k=>{ if(k.startsWith(PFX)&&k.replace(PFX,"")<cutoff) localStorage.removeItem(k); });
+  }catch{}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════
+const todayDate = midnight(new Date());
+const todayDK   = dateKey(todayDate);
+const window7   = buildWindow(todayDate);
+const winDKs    = window7.map(dateKey);
+
+pruneOld(todayDate);
+
+// Load cache for all 7 days
+const dayCache = {};
+winDKs.forEach(dk=>{ dayCache[dk]=loadDay(dk)||emptyDay(); });
+
+let activeDK  = todayDK;
+let activeTab = "log"; // "log" | "summary"
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MUTATIONS
+// ═══════════════════════════════════════════════════════════════════════════
+function setField(dk,field,val){
+  if(!dayCache[dk]) dayCache[dk]=emptyDay();
+  dayCache[dk][field]=val;
+  saveDay(dk,dayCache[dk]);
+  render();
+}
+function toggleHabit(dk,id){
+  if(!dayCache[dk]) dayCache[dk]=emptyDay();
+  dayCache[dk].habits[id]=!dayCache[dk].habits[id];
+  saveDay(dk,dayCache[dk]);
+  render();
+}
+function toggleFruit(dk,id){
+  if(!dayCache[dk]) dayCache[dk]=emptyDay();
+  dayCache[dk].fruits[id]=!dayCache[dk].fruits[id];
+  saveDay(dk,dayCache[dk]);
+  render();
+}
+function toggleSaladIng(dk,field,id){
+  if(!dayCache[dk]) dayCache[dk]=emptyDay();
+  dayCache[dk][field][id]=!dayCache[dk][field][id];
+  saveDay(dk,dayCache[dk]);
+  render();
+}
+function copyFromPrev(){
+  const idx=winDKs.indexOf(activeDK);
+  if(idx<=0) return;
+  const src=dayCache[winDKs[idx-1]]||emptyDay();
+  dayCache[activeDK]=JSON.parse(JSON.stringify(src));
+  saveDay(activeDK,dayCache[activeDK]);
+  render();
+  // Flash button
+  const btn=document.getElementById("btn-prev");
+  if(btn){ btn.textContent="✅ Done!"; btn.classList.add("done"); setTimeout(()=>{ btn.textContent="⬆ Copy prev day"; btn.classList.remove("done"); },2000); }
+}
+
+function getDayScore(dk){
+  const d=dayCache[dk]; if(!d) return 0;
+  return Math.round(HABITS.filter(id=>d.habits[id]).length/HABITS.length*100);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COPY TEXT
+// ═══════════════════════════════════════════════════════════════════════════
+function generateText(dk){
+  const d=dayCache[dk]||emptyDay(); const h=d.habits;
+  const date=window7[winDKs.indexOf(dk)];
+  const yn=v=>v?"Yes":"No";
+  const selFruits=FRUITS.filter(f=>d.fruits[f.id]).map(f=>f.label);
+  const fruitStr=selFruits.length>0?selFruits.join(", ")+" - "+d.fruitBowlWeight+"g":"Not logged";
+  const saladStr=(ings,wt)=>{ const items=SALAD.filter(s=>ings[s.id]).map(s=>s.label); return items.length?"Salad - "+items.join(", ")+" - "+wt+"g":""; };
+  const smoothieLine=h.smoothie?"\nSmoothie - "+(d.smoothieIngredients||"Yes"):"";
+  const herbs=[];
+  if(h.ashwagandha) herbs.push("Ashwagandha - After Breakfast");
+  if(h.abcJuice)    herbs.push("Cinnamon in ABC Juice");
+  if(d.extraHerbs?.trim()) herbs.push(d.extraHerbs.trim());
+  if(!herbs.length) herbs.push("None");
+  const pl=h.preLunchSalad?saladStr(d.preLunchSaladIng,d.preLunchSaladWt):"";
+  const pd=h.preDinnerSalad?saladStr(d.preDinnerSaladIng,d.preDinnerSaladWt):"";
+  return `Daily Update - ${fmtDate(date)}\n\nArshad Khan (Meal Plan Day ${getDayNum(date)})\n\nPre-Breakfast:\nMethi Water and a Garlic Clove\n\nBreakfast:\nFruit Bowl - ${fruitStr}${smoothieLine}\n\nPre-Lunch: ${pl}\nLunch: ${d.lunch||"Not logged"}\n\nEvening: ${h.abcJuice?"ABC Juice with Cinnamon":""}\n\nPre-Dinner: ${pd}\nDinner: ${d.dinner||"Not logged"}\n\nWorkout Time:\nStretching - ${yn(h.stretching)}\nExercise - ${h.exercise?"Yes, from Dr. Vicky's recorded session":"No"}\n\nNatural Therapy:\nSunlight - ${yn(h.sunlight)}\nWet Pack Therapy - ${yn(h.wetPack)}\nGrounding - ${yn(h.grounding)}\n\nMeditation Audio Heard: ${yn(h.meditation)}\n\nHerbs taken:\n${herbs.join("\n")}\n\nAffirmations: ${yn(h.affirmations)}\n\nBreathing techniques: ${yn(h.breathing)}\n\nLast consultation date: 25-Apr-26${d.notes?"\n\nNotes: "+d.notes:""}`;
+}
+
+function handleCopy(){
+  const text=generateText(activeDK);
+  const btn=document.getElementById("btn-copy");
+  const doFlash=()=>{ if(btn){ btn.classList.add("done"); btn.innerHTML='<span class="copy-icon">✅</span>Copied to clipboard!'; setTimeout(()=>{ btn.classList.remove("done"); btn.innerHTML='<span class="copy-icon">📋</span>Copy Today\'s Update'; },2500); } };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(doFlash).catch(()=>fallbackCopy(text,doFlash));
+  } else { fallbackCopy(text,doFlash); }
+}
+function fallbackCopy(text,cb){
+  const el=document.createElement("textarea");
+  el.value=text; el.style.position="fixed"; el.style.opacity="0";
+  document.body.appendChild(el); el.focus(); el.select();
+  try{ document.execCommand("copy"); }catch(e){}
+  document.body.removeChild(el); if(cb) cb();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDER HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+function el(tag,cls,html,attrs){
+  const e=document.createElement(tag);
+  if(cls) e.className=cls;
+  if(html!==undefined) e.innerHTML=html;
+  if(attrs) Object.entries(attrs).forEach(([k,v])=>{ if(k==="style") e.style.cssText=v; else e.setAttribute(k,v); });
+  return e;
+}
+
+function toggleItemEl(label,checked,onToggle){
+  const btn=el("button","toggle-item");
+  btn.innerHTML=`<span class="toggle-icon">${checked?"✅":"⬜"}</span><span class="lbl ${checked?"on":"off"}">${label}</span>`;
+  btn.addEventListener("click",onToggle);
+  return btn;
+}
+
+function chipGridEl(items,selected,onToggle,small){
+  const grid=el("div","chip-grid");
+  items.forEach(item=>{
+    const on=!!selected[item.id];
+    const chip=el("button","chip"+(on?" on":"")+(small?" sm":""));
+    chip.innerHTML=`<span class="chip-emoji">${item.e}</span><span class="chip-lbl ${on?"on":"off"}">${item.label}</span>`;
+    chip.addEventListener("click",()=>onToggle(item.id));
+    grid.appendChild(chip);
+  });
+  return grid;
+}
+
+function cardEl(label){
+  const card=el("div","card");
+  card.appendChild(el("div","sec-label",label));
+  return card;
+}
+
+function inputEl(val,placeholder,onChange){
+  const inp=el("input","inp");
+  inp.value=val; inp.placeholder=placeholder||"";
+  inp.addEventListener("input",e=>onChange(e.target.value));
+  return inp;
+}
+
+function numInputEl(val,onChange){
+  const inp=el("input","inp-sm");
+  inp.type="number"; inp.value=val;
+  inp.addEventListener("input",e=>onChange(e.target.value));
+  return inp;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BUILD LOG TAB
+// ═══════════════════════════════════════════════════════════════════════════
+function buildLog(){
+  const frag=document.createDocumentFragment();
+  const dk=activeDK;
+  const d=dayCache[dk]||emptyDay();
+  const h=d.habits;
+  const idx=winDKs.indexOf(dk);
+  const date=window7[idx];
+  const isFuture=dk>todayDK;
+
+  // Day strip
+  const strip=el("div","day-strip");
+  window7.forEach((date,i)=>{
+    const wdk=winDKs[i];
+    const score=getDayScore(wdk);
+    const isActive=wdk===activeDK;
+    const isToday=wdk===todayDK;
+    const isFut=wdk>todayDK;
+    const cls="day-pill"+(isActive?" active":isToday?" today-pill":""+(isFut?" future":""));
+    const pill=el("div",cls);
+    const sc=scoreColor(score);
+    const ringBg=isFut?`rgba(255,255,255,0.05)`:`conic-gradient(${sc} ${score*3.6}deg,rgba(255,255,255,0.05) 0deg)`;
+    pill.innerHTML=`
+      <div class="dp-dow" style="color:${isActive?"#4ade80":isToday?"#7abe9a":"#4a7a5a"}">${DAY_SHORT[date.getDay()]}</div>
+      <div class="dp-num">D${getDayNum(date)}</div>
+      <div class="dp-date">${date.getDate()}/${date.getMonth()+1}</div>
+      <div class="dp-ring" style="background:${ringBg}">
+        <div class="dp-inner" style="color:${isFut?"#2a4a3a":sc}">${isFut?"":score>0?score:"—"}</div>
+      </div>
+      ${isToday?'<div class="dp-today">today</div>':""}
+    `;
+    if(isFut) pill.classList.add("future");
+    pill.addEventListener("click",()=>{ activeDK=wdk; render(); });
+    strip.appendChild(pill);
+  });
+  frag.appendChild(strip);
+
+  // Day heading
+  const hdrDiv=el("div","day-hdr");
+  const left=el("div","day-hdr-left");
+  left.appendChild(el("span","day-name",DAY_FULL[date.getDay()]));
+  left.appendChild(el("span","day-badge","Day "+getDayNum(date)));
+  left.appendChild(el("span","day-date-lbl",fmtDate(date)));
+  if(isFuture) left.appendChild(el("span","","<span style='font-size:10px;color:#4a6a4a;font-style:italic'>upcoming</span>"));
+  hdrDiv.appendChild(left);
+  if(idx>0&&!isFuture){
+    const prevBtn=el("button","btn-prev","⬆ Copy prev day");
+    prevBtn.id="btn-prev";
+    prevBtn.addEventListener("click",copyFromPrev);
+    hdrDiv.appendChild(prevBtn);
+  }
+  frag.appendChild(hdrDiv);
+
+  const content=el("div","content");
+
+  // ── WORKOUT ──
+  const wCard=cardEl("💪 Workout Time");
+  wCard.appendChild(toggleItemEl("Stretching",h.stretching,()=>toggleHabit(dk,"stretching")));
+  wCard.appendChild(toggleItemEl("Exercise (Dr. Vicky's recorded session)",h.exercise,()=>toggleHabit(dk,"exercise")));
+  content.appendChild(wCard);
+
+  // ── PRE-BREAKFAST ──
+  const pbCard=cardEl("🌿 Pre-Breakfast");
+  pbCard.appendChild(toggleItemEl("Methi Water + Garlic Clove",h.methi,()=>toggleHabit(dk,"methi")));
+  content.appendChild(pbCard);
+
+  // ── BREAKFAST ──
+  const bCard=cardEl("🍎 Breakfast");
+  const fHdr=el("div","fruit-hdr");
+  fHdr.appendChild(el("span","","<span style='font-size:12px;color:#4ade80'>Fruit Bowl</span>"));
+  const wtRow=el("div","row");
+  wtRow.appendChild(el("label","lbl-sm","Weight (g):"));
+  const wtInp=numInputEl(d.fruitBowlWeight,v=>setField(dk,"fruitBowlWeight",v));
+  wtRow.appendChild(wtInp);
+  fHdr.appendChild(wtRow);
+  bCard.appendChild(fHdr);
+  bCard.appendChild(chipGridEl(FRUITS,d.fruits,id=>toggleFruit(dk,id),false));
+  const smoothieSep=el("div","divider");
+  smoothieSep.appendChild(toggleItemEl("Smoothie",h.smoothie,()=>toggleHabit(dk,"smoothie")));
+  if(h.smoothie){
+    smoothieSep.appendChild(inputEl(d.smoothieIngredients,"Ingredients (e.g. Almond Milk, Avocado...)",v=>setField(dk,"smoothieIngredients",v)));
+  }
+  bCard.appendChild(smoothieSep);
+  content.appendChild(bCard);
+
+  // ── PRE-LUNCH SALAD ──
+  const plCard=cardEl("🥗 Pre-Lunch Salad");
+  plCard.appendChild(toggleItemEl("Had Pre-Lunch Salad",h.preLunchSalad,()=>toggleHabit(dk,"preLunchSalad")));
+  if(h.preLunchSalad){
+    plCard.appendChild(chipGridEl(SALAD,d.preLunchSaladIng,id=>toggleSaladIng(dk,"preLunchSaladIng",id),true));
+    const wr=el("div","wt-row");
+    wr.appendChild(el("label","lbl-sm","Weight (g):"));
+    wr.appendChild(numInputEl(d.preLunchSaladWt,v=>setField(dk,"preLunchSaladWt",v)));
+    plCard.appendChild(wr);
+  }
+  content.appendChild(plCard);
+
+  // ── LUNCH ──
+  const lCard=cardEl("🍱 Lunch");
+  lCard.appendChild(inputEl(d.lunch,"What did you have for lunch?",v=>setField(dk,"lunch",v)));
+  content.appendChild(lCard);
+
+  // ── EVENING ──
+  const evCard=cardEl("🥤 Evening");
+  evCard.appendChild(toggleItemEl("ABC Juice (Apple, Beetroot, Carrot + Cinnamon)",h.abcJuice,()=>toggleHabit(dk,"abcJuice")));
+  content.appendChild(evCard);
+
+  // ── PRE-DINNER SALAD ──
+  const pdCard=cardEl("🥗 Pre-Dinner Salad");
+  pdCard.appendChild(toggleItemEl("Had Pre-Dinner Salad",h.preDinnerSalad,()=>toggleHabit(dk,"preDinnerSalad")));
+  if(h.preDinnerSalad){
+    pdCard.appendChild(chipGridEl(SALAD,d.preDinnerSaladIng,id=>toggleSaladIng(dk,"preDinnerSaladIng",id),true));
+    const wr=el("div","wt-row");
+    wr.appendChild(el("label","lbl-sm","Weight (g):"));
+    wr.appendChild(numInputEl(d.preDinnerSaladWt,v=>setField(dk,"preDinnerSaladWt",v)));
+    pdCard.appendChild(wr);
+  }
+  content.appendChild(pdCard);
+
+  // ── DINNER ──
+  const dCard=cardEl("🌙 Dinner");
+  dCard.appendChild(inputEl(d.dinner,"What did you have for dinner?",v=>setField(dk,"dinner",v)));
+  content.appendChild(dCard);
+
+  // ── NATURAL THERAPY ──
+  const ntCard=cardEl("🌍 Natural Therapy");
+  ntCard.appendChild(toggleItemEl("Sunlight",h.sunlight,()=>toggleHabit(dk,"sunlight")));
+  ntCard.appendChild(toggleItemEl("Wet Pack Therapy",h.wetPack,()=>toggleHabit(dk,"wetPack")));
+  ntCard.appendChild(toggleItemEl("Grounding",h.grounding,()=>toggleHabit(dk,"grounding")));
+  content.appendChild(ntCard);
+
+  // ── MEDITATION ──
+  const medCard=cardEl("🎧 Meditation");
+  medCard.appendChild(toggleItemEl("Meditation Audio Heard",h.meditation,()=>toggleHabit(dk,"meditation")));
+  content.appendChild(medCard);
+
+  // ── HERBS ──
+  const hbCard=cardEl("🌱 Herbs");
+  hbCard.appendChild(toggleItemEl("Ashwagandha (After Breakfast)",h.ashwagandha,()=>toggleHabit(dk,"ashwagandha")));
+  hbCard.appendChild(el("p","note-sm","Cinnamon auto-tracked via ABC Juice"));
+  hbCard.appendChild(el("label","lbl-sm","Additional herbs:"));
+  hbCard.appendChild(inputEl(d.extraHerbs,"e.g. Saffron in Almond Milk",v=>setField(dk,"extraHerbs",v)));
+  content.appendChild(hbCard);
+
+  // ── MINDSET ──
+  const mnCard=cardEl("✨ Mindset");
+  mnCard.appendChild(toggleItemEl("Affirmations",h.affirmations,()=>toggleHabit(dk,"affirmations")));
+  mnCard.appendChild(toggleItemEl("Breathing Techniques",h.breathing,()=>toggleHabit(dk,"breathing")));
+  content.appendChild(mnCard);
+
+  // ── NOTES ──
+  const nCard=cardEl("📝 Notes");
+  const ta=el("textarea","inp");
+  ta.rows=3; ta.placeholder="Any observations, symptoms, or comments...";
+  ta.value=d.notes;
+  ta.addEventListener("input",e=>setField(dk,"notes",e.target.value));
+  nCard.appendChild(ta);
+  content.appendChild(nCard);
+
+  // ── COPY BUTTON ──
+  const copyBtn=el("button","btn-copy");
+  copyBtn.id="btn-copy";
+  copyBtn.innerHTML='<span class="copy-icon">📋</span>Copy Today\'s Update';
+  copyBtn.addEventListener("click",handleCopy);
+  content.appendChild(copyBtn);
+
+  frag.appendChild(content);
+  return frag;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BUILD SUMMARY TAB
+// ═══════════════════════════════════════════════════════════════════════════
+function buildSummary(){
+  const wrap=el("div","",undefined,"style=padding:14px");
+
+  // Scores
+  const sc=cardEl("📈 Scores (Last 3 + Today + Next 3)");
+  const chart=el("div","score-chart");
+  window7.forEach((date,i)=>{
+    const wdk=winDKs[i]; const score=getDayScore(wdk);
+    const isFut=wdk>todayDK; const isTod=wdk===todayDK;
+    const col=el("div","score-col");
+    const valDiv=el("div","score-val"); valDiv.textContent=!isFut&&score>0?score:""; valDiv.style.color=scoreColor(score);
+    const bar=el("div","score-bar");
+    bar.style.height=(isFut?2:Math.max(score*0.58,score>0?4:2))+"px";
+    bar.style.background=isFut?"rgba(255,255,255,0.05)":score>0?scoreColor(score):"rgba(255,255,255,0.05)";
+    const dow=el("div","score-dow",DAY_SHORT[date.getDay()]); if(isTod){dow.style.color="#4ade80";dow.style.fontWeight="bold";}
+    const dn=el("div","score-dn","D"+getDayNum(date));
+    if(isFut) col.style.opacity="0.3";
+    col.appendChild(valDiv); col.appendChild(bar); col.appendChild(dow); col.appendChild(dn);
+    chart.appendChild(col);
+  });
+  sc.appendChild(chart); wrap.appendChild(sc);
+
+  // Habit consistency
+  const hc=cardEl("🎯 Habit Consistency (7-day window)");
+  HABITS.forEach(id=>{
+    const count=winDKs.filter(dk=>dayCache[dk]?.habits?.[id]).length;
+    const pct=Math.round(count/7*100);
+    const row=el("div","habit-row");
+    const top=el("div","habit-top");
+    top.appendChild(el("span","habit-name",HABIT_LABELS[id]));
+    const cnt=el("span","habit-count",count+"/7"); cnt.style.color=scoreColor(pct);
+    top.appendChild(cnt);
+    const track=el("div","habit-track");
+    const fill=el("div","habit-fill"); fill.style.width=(count/7*100)+"%"; fill.style.background=scoreColor(pct);
+    track.appendChild(fill);
+    row.appendChild(top); row.appendChild(track);
+    hc.appendChild(row);
+  });
+  wrap.appendChild(hc);
+
+  // Meals
+  const ml=cardEl("🍽 Meals (7-day window)");
+  let hasMeals=false;
+  window7.forEach((date,i)=>{
+    const dk=winDKs[i]; const d=dayCache[dk];
+    if(!d?.lunch&&!d?.dinner) return;
+    hasMeals=true;
+    const row=el("div","meal-row");
+    row.appendChild(el("div","meal-day",DAY_SHORT[date.getDay()]+" — "+fmtDate(date)));
+    if(d.lunch)  row.appendChild(el("div","meal-line","🍱 "+d.lunch));
+    if(d.dinner) row.appendChild(el("div","meal-line","🌙 "+d.dinner));
+    ml.appendChild(row);
+  });
+  if(!hasMeals) ml.appendChild(el("div","","<span style='font-size:13px;color:#4a7a5a;font-style:italic'>No meals logged yet.</span>"));
+  wrap.appendChild(ml);
+
+  // Fruits
+  const fr=cardEl("🍎 Fruit Frequency (7-day window)");
+  FRUITS.forEach(f=>{
+    const count=window7.filter(d=>dayCache[dateKey(d)]?.fruits?.[f.id]).length;
+    const row=el("div","row","",undefined);
+    row.style.marginBottom="7px";
+    row.innerHTML=`<span style="font-size:14px">${f.e}</span><span style="font-size:12px;color:#c8e6c8;flex:1">${f.label}</span><span style="font-size:12px;font-family:monospace;color:${count>0?scoreColor(Math.round(count/7*100)):"#2a4a3a"}">${count}/7</span>`;
+    fr.appendChild(row);
+  });
+  wrap.appendChild(fr);
+
+  wrap.appendChild(el("div","footer","Data saved locally · Last 3 days always retained"));
+  return wrap;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════════════════
+function render(){
+  const app=document.getElementById("app");
+  app.innerHTML="";
+
+  // Header
+  const hdr=el("div","hdr");
+  hdr.innerHTML=`<div><h1>Arshad Khan</h1><span class="sub">Wellness & Fertility Protocol</span></div><div class="meta">Today · ${fmtDate(todayDate)} · Day ${getDayNum(todayDate)}</div>`;
+  app.appendChild(hdr);
+
+  // Tabs
+  const tabs=el("div","tabs");
+  [["log","📋 Daily Log"],["summary","📊 7-Day Summary"]].forEach(([id,label])=>{
+    const btn=el("button","tab "+(activeTab===id?"active":"inactive"),label);
+    btn.addEventListener("click",()=>{ activeTab=id; render(); });
+    tabs.appendChild(btn);
+  });
+  app.appendChild(tabs);
+
+  // Content
+  if(activeTab==="log") app.appendChild(buildLog());
+  else app.appendChild(buildSummary());
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MIDNIGHT AUTO-REFRESH
+// ═══════════════════════════════════════════════════════════════════════════
+setInterval(()=>{
+  if(dateKey(new Date())!==todayDK) location.reload();
+},60000);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════
+render();
+
+// ── Service Worker for offline use ──
+if("serviceWorker" in navigator){
+  const swCode=`
+    const CACHE="arshad-tracker-v1";
+    self.addEventListener("install",e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll([".","./"]))); self.skipWaiting(); });
+    self.addEventListener("activate",e=>{ e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))); });
+    self.addEventListener("fetch",e=>{ e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{ const clone=res.clone(); caches.open(CACHE).then(c=>c.put(e.request,clone)); return res; }).catch(()=>caches.match(".")))); });
+  `;
+  const swBlob=new Blob([swCode],{type:"application/javascript"});
+  const swURL=URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swURL).catch(()=>{});
+}
+</script>
+</body>
+</html>
